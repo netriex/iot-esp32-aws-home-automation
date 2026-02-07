@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Home Dashboard</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    color: #333;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+  }
+  h1 { margin-top: 20px; color: #2c3e50; }
+  form {
+    background: white;
+    padding: 20px;
+    margin: 20px auto;
+    width: 300px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  input, button {
+    width: 90%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+  button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover { background-color: #2980b9; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>🏠 Smart Home Dashboard</h1>
+
+<!-- Login Form -->
+<form id="loginForm">
+  <h2>Login</h2>
+  <input type="text" id="phone" placeholder="Phone" required><br>
+  <input type="password" id="password" placeholder="Password" required><br>
+<input name="clientId">   (phone number)
+<input name="house">      (H1, H2 etc.)
+<input name="floor">      (F1, F2 etc.)
+<select name="roomType">  (kitchen, bedroom, hall, etc.)
+<input name="count">      (01, 02, 03…)
+
+  <button type="submit">Login</button>
+</form>
+
+<!-- Command Form -->
+<form id="commandForm" class="hidden">
+  <h2>Send Command</h2>
+  <input type="text" id="device_id" placeholder="Device ID (e.g., ESP32_Device_1)" required><br>
+  <select id="command">
+    <option value='{"switch1":1}'>Turn ON</option>
+    <option value='{"switch1":0}'>Turn OFF</option>
+  </select><br>
+  <button type="submit">Send Command</button>
+</form>
+
+<p id="message"></p>
+
+<script>
+const API_BASE = "https://a5le507pe9.execute-api.ap-south-1.amazonaws.com"; // your API Gateway URL
+let accessToken = null;
+
+// --- LOGIN HANDLER ---
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const phone = document.getElementById("phone").value;
+  const password = document.getElementById("password").value;
+
+  document.getElementById("message").innerText = "Logging in...";
+
+  try {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({ phone, password })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      accessToken = data.access_token;
+      document.getElementById("loginForm").classList.add("hidden");
+      document.getElementById("commandForm").classList.remove("hidden");
+      document.getElementById("message").innerText = "✅ Login successful!";
+    } else {
+      document.getElementById("message").innerText = "❌ " + (data.message || "Login failed");
+    }
+  } catch (err) {
+    document.getElementById("message").innerText = "⚠️ Network error";
+    console.error(err);
+  }
+});
+
+// --- COMMAND HANDLER ---
+document.getElementById("commandForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const device_id = document.getElementById("device_id").value;
+  const command = JSON.parse(document.getElementById("command").value);
+
+  document.getElementById("message").innerText = "Sending command...";
+
+  try {
+    const res = await fetch(`${API_BASE}/command`, {
+      method: "POST",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        access_token: accessToken,
+        device_id,
+        command
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById("message").innerText = "✅ Command sent successfully!";
+    } else {
+      document.getElementById("message").innerText = "❌ " + (data.error || "Failed to send command");
+    }
+  } catch (err) {
+    document.getElementById("message").innerText = "⚠️ Network error";
+    console.error(err);
+  }
+});
+</script>
+
+
+</body>
+</html>
